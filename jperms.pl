@@ -409,6 +409,8 @@ A value of '-' for any field except pattern means that this field should be
 ignored and the corresponding attribute for a matching file is to remain
 un-altered.
 
+=over
+
 =item pattern
 
 - B<pattern> is a regex (NOT a fileglob!) to be matched against each path
@@ -451,6 +453,8 @@ applied to directories, and B<file_mode> is only applied to files
 
 - B<dir_mode> and B<file_mode> specify absolute permissions and are not
 applied through any kind of mask.
+
+=back
 
 =head1 OUTPUT
 
