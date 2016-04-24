@@ -416,43 +416,43 @@ un-altered.
 - B<pattern> is a regex (NOT a fileglob!) to be matched against each path
 found during the tree descent.
 
-- Patterns are automatically surrounded by ^ and $ when matching, meaning
+- patterns are automatically surrounded by ^ and $ when matching, meaning
 that a pattern must match the whole of the current path (not just part of it).
 
-- file paths include the top level path exactly as specified on the command
-line, so a pattern to match a *relative* top level directory (e.g.  "./dir")
-must also match the dot (".") at the start of the path (e.g. with "\./dir")
+- file paths include the start directory path exactly as specified on the
+command line, so a pattern to match a *relative* top level directory (e.g.
+"./dir") must also match the dot (".") at the start of the path (e.g. with
+"\./dir")
 
-- The path of each file or directory is compared against each pattern in turn
-(top to bottom) until a match is found.  Matching for that path then
-stops and the matched rule is applied to the file or directory..
+- paths are compared against each pattern in turn (top to bottom) until a match
+is found.  Matching for that path then stops and the matched rule is applied to
+the file or directory..
 
 =item owner and group
 
-- B<owner> and B<group> fields must be specified as names; numeric ids
-are not supported
+- must be names; numeric ids are not supported
 
-- specifying a B<owner> or B<group> which does not exist will cause an error
+- an B<owner> or B<group> which does not exist on the host will cause an error
 message to be printed and the field will have no effect, i.e.  it will be
 treated as if it were '-'
 
-- files found during the descent with numeric owner or group ids (i.e. the user
-or group does not exist on the host), are treated like any other file; i.e. new
-B<owner> and/or B<group> will be applied as normal if a rules matches.
+- files with numeric owner or group ids (i.e. the user or group does not exist
+on the host), are treated like any other file; i.e. new B<owner> and/or
+B<group> will be applied as normal if a rules matches.
 
-=item dir_mode & file_mode
+=item dir_mode and file_mode
 
-- B<dir_mode> and B<file_mode> file or dir mode must be specified in octal;
-leading zero is not required
+- both specify absolute permissions and are not applied through any kind of
+mask.
 
-- A B<dir_mode> or B<file_mode> value of 0 (or any string which evaluates to zero
-when converted to a number) is treated as a '-'
+- must be octal; leading zero is not required
 
-- A pattern may match both files and directories, but B<dir_mode> is only ever
-applied to directories, and B<file_mode> is only applied to files
+- a value of 0 (or any string which evaluates to zero when converted to a
+number) is treated as a '-'
 
-- B<dir_mode> and B<file_mode> specify absolute permissions and are not
-applied through any kind of mask.
+- B<dir_mode> is only ever applied to directories, and B<file_mode> is only
+applied to files
+
 
 =back
 
