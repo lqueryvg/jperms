@@ -22,6 +22,8 @@ my %options = ( # command line options
 my %metrics;
 my %parse_errors;
 my $header_already_printed = 0;
+my $parser_line_number = 0;;
+my $parser_filename = 0;;
 
 # Subroutines
 sub init_metrics {
@@ -43,13 +45,13 @@ sub get_options { # Get command line options
 
 sub parse_error {
   my ($str) = @_;
-  $parse_errors{$str} = undef;
+  $parse_errors{"line $parser_line_number: $str"} = undef;
   return;
 }
 
 sub print_parse_errors {
   for my $e (keys %parse_errors) {
-    print "PARSE_ERROR: $e\n";
+    print "PARSE_ERROR: $options{file}, $e\n";
   }
   return;
 }
@@ -66,11 +68,17 @@ sub parse_permission_rules {
   my @pattern_list = ();
 
   while (my $line = <$fh>) {
+    $parser_line_number++;
 
     chomp $line;
     print "$line\n" if $options{verbosity} > 3;
 
     my ($pattern, $owner, $group, $dmode, $fmode) = split(' ', $line);
+
+    if (!defined($fmode)) {
+      parse_error('5 fields expected, line ignored');
+      next;
+    }
 
     # skip blank lines and comments
     next if (!defined $pattern || $pattern =~ /^\#/x);
@@ -117,7 +125,7 @@ sub _get_id {
   return -1 if ($name eq '-');
   my $id = $sub->($name);
   return $id if (defined $id);
-  parse_error("unable to find $type " . $name);
+  parse_error("unable to find $type $name, field ignored");
   return -1;
   # TODO cache for speed ?
 }

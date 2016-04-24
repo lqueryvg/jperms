@@ -9,10 +9,11 @@ cat <<EOF > patterns.txt
 \./test/data.*/proj/[^/]+      john    kvm      750   -
 \./test/data[^/]*/proj         john    john     750   -
 \./test/data.*/tws/logs        john    kvm      770   -
-\./test/data.*/tws             john    docker   750   -
+#\./test/data.*/tws             john    docker   750   -
+\./test/data.*/tws             
 \./test/data.*/logs            john    libvirt  770   -
 \./test/data.*/scripts         john    kvm      750   -
-\./test/data.*                 john    kvm      770   660
+\./test/data.*                 john    wibble   770   660
 \./test/.*                     -       -        -     -
 \./test                        john    kvm      775   -
 EOF
