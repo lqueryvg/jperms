@@ -54,11 +54,11 @@ sub print_parse_errors {
   return;
 }
 
-sub parse_pattern_rules {
-  # Process pattern rules
+sub parse_permission_rules {
+  # Process rules file
 
   my $fh = IO::File->new($options{file}, q{<})
-    or die "ERROR: unable to open patterns file $options{file}\n";
+    or die "ERROR: unable to open rules file $options{file}\n";
 
   print "rules...\n" if $options{verbosity} > 3;
 
@@ -359,7 +359,7 @@ sub main {
   get_options();
   print "verbosity = $options{verbosity}\n" if $options{verbosity} >= 2;
   init_metrics();
-  my $rules = parse_pattern_rules($options{file});
+  my $rules = parse_permission_rules($options{file});
   print Dumper $rules if $options{verbosity} >= 5;
 
   print_parse_errors();
@@ -384,7 +384,7 @@ jperms.pl [options]
 
  Options:
    -dir            directory to descend
-   -file           patterns file
+   -file           permission rules file
    -no_change      don't make changes, just show what would change
    -verbosity      repeat to increase
    -man            full documentation
@@ -394,18 +394,18 @@ jperms.pl [options]
 
 jperms.pl descends the specified directory tree applying permissions and
 ownerships to each file or directory found according to a set
-of pattern rules.
+of permission rules.
 
-=head1 PATTERN RULES
+=head1 PERMISSION RULES
 
-Pattern rules are specified as lines in a file, optionally preceded by
+Permission rules are specified as lines in a file, optionally preceded by
 whitespace.  Lines starting with a '#' are treated as B<comments> and ignored.
 
 Each line consists of 5 fields separated by whitespace:
 
  pattern   owner   group   dir_mode   file_mode
 
-A value of '-' for any field except pattern means that this field should be
+A value of '-' for any field except pattern means the field should be
 ignored and the corresponding attribute for a matching file is to remain
 un-altered.
 
@@ -416,17 +416,17 @@ un-altered.
 - B<pattern> is a regex (NOT a fileglob!) to be matched against each path
 found during the tree descent.
 
-- patterns are automatically surrounded by ^ and $ when matching, meaning
-that a pattern must match the whole of the current path (not just part of it).
+- patterns are automatically surrounded by ^ and $ when matching; a pattern
+must match the whole of the current path (not just part of it).
 
-- file paths include the start directory path exactly as specified on the
-command line, so a pattern to match a *relative* top level directory (e.g.
+- file paths include the start directory exactly as specified on the
+command line, so a pattern to match a I<relative> top level directory (e.g.
 "./dir") must also match the dot (".") at the start of the path (e.g. with
 "\./dir")
 
-- paths are compared against each pattern in turn (top to bottom) until a match
-is found.  Matching for that path then stops and the matched rule is applied to
-the file or directory..
+- paths are compared against each pattern in turn (in order) until the first
+match is found.  Permissions are then applied to the matchedd path as per the
+rule, and process continues with the next file or directory.
 
 =item owner and group
 
@@ -478,13 +478,13 @@ Other output is controlled by the -verbosity level:
   1 objects & changes needed
   2 all objects (even if no change required)
   3 commands used to make changes
-  3 pattern rules
+  3 permission rules
   4 debug (patterns, current/target perms, filename)
   5 internal data structures
 
-=head1 EXAMPLE PATTERN RULES
+=head1 EXAMPLE
 
-Example pattern file:
+Example rules.txt file:
 
   # pattern                      owner   group  dmode  fmode
 
@@ -501,4 +501,24 @@ Example pattern file:
   \./test/data.*                 appuser grp2    770   660
   \./test/.*                     -       -       -     -
   \./test                        appuser appgrp  775   -
+
+Run the above permission rules recursively to directory ./test
+in -no_change mode, i.e. report the changes needed without
+making any changes:
+
+  jperms.pl -f patterns.txt -d ./test -n
+
+Sample output (suitable for parsing as CSV):
+
+  type,path,mode,owner,group
+  d,./test/data,mode(0775->0770),,
+  d,./test/data/scripts,mode(0777->0750),,group(docker->kvm)
+  d,./test/data/proj,mode(0776->0750),,
+  d,./test/data/proj/r,mode(0777->0750),,
+  d,./test/data/proj/r/r_import,mode(0777->0770),,group(john->docker)
+  f,./test/data/proj/r/r_import/f1,mode(0777->0660),,
+  d,./test/data/tws,mode(0777->0750),,
+  d,./test/data/tws/logs,mode(0677->0770),,
+  d,./test/data-2,mode(0757->0770),,
+  Summary: inspected=11, changed=0, failed=0, pending=9
 

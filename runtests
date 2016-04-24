@@ -34,4 +34,4 @@ echo "Starting test..."
 
 #./jperms.pl -f patterns.txt -d ./test -v -v
 #./jperms.pl -f patterns.txt -d ./test -v
-./jperms.pl -f patterns.txt -d ./test
+./jperms.pl -f patterns.txt -d ./test -n
