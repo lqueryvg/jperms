@@ -1,0 +1,37 @@
+echo "Setting up test..."
+
+cat <<EOF > patterns.txt
+# pattern                      owner   grp     dmode fmode
+\./test/data.*/proj/cards      john    docker   770   -
+\./test/data.*/proj/r/r_import john    docker   770   -
+\./test/data.*/proj/outbound   john    kvm     2770   -
+\./test/data.*/proj/.*/inbox   john    docker   770   -
+\./test/data.*/proj/[^/]+      john    kvm      750   -
+\./test/data[^/]*/proj         john    john     750   -
+\./test/data.*/tws/logs        john    kvm      770   -
+\./test/data.*/tws             john    docker   750   -
+\./test/data.*/logs            john    libvirt  770   -
+\./test/data.*/scripts         john    kvm      750   -
+\./test/data.*                 john    kvm      770   660
+\./test/.*                     -       -        -     -
+\./test                        john    kvm      775   -
+EOF
+
+chmod 775 ./test/data
+chmod 777 ./test/data/scripts
+chgrp docker ./test/data/scripts
+chmod 776 ./test/data/proj
+chmod 777 ./test/data/proj/r
+chmod 777 ./test/data/proj/r/r_import
+chgrp john ./test/data/proj/r/r_import
+chmod 777 ./test/data/proj/r/r_import/f1
+chmod 777 ./test/data/tws
+chmod 677 ./test/data/tws/logs
+chmod 777 ./test/f1
+chmod 757 ./test/data-2
+
+echo "Starting test..."
+
+#./jperms.pl -f patterns.txt -d ./test -v -v
+#./jperms.pl -f patterns.txt -d ./test -v
+./jperms.pl -f patterns.txt -d ./test

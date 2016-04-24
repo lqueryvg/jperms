@@ -4,47 +4,57 @@
 
 use strict;
 use warnings;
+
 use File::Find;
 use Getopt::Long;
 use Pod::Usage;
 use IO::File;
 use POSIX;
 use File::stat;
+use Data::Dumper;
 
 # Globals
 
 my %options = ( # command line options
   verbosity => 0,
-  no_run => 0,
+  no_change => 0,
 );
 my %metrics;
+my %parse_errors;
+my $header_already_printed = 0;
 
 # Subroutines
 sub init_metrics {
   for my $name (qw/inspected changed failed pending/) {
     $metrics{$name} = 0;
   }
+  return;
 }
 
 sub get_options { # Get command line options
   GetOptions(\%options, 'help|?|h', 'file=s',
-                        'man', 'verbosity+', 'dir=s', 'no_run');
+                        'man', 'verbosity+', 'dir=s', 'no_change');
   pod2usage(1) if $options{help};
   pod2usage(-verbose => 2) if $options{man};
   pod2usage({ -message => q{ERROR: -file is required} }) unless $options{file};
   pod2usage({ -message => q{ERROR: -dir is required} })  unless $options{dir};
+  return;
 }
 
-sub zero_pad_octal_string {
+sub parse_error {
   my ($str) = @_;
-  if ($str ne '-' && substr($str, 0, 1) ne '0') {
-    $str = '0' . $str;
-  }
-  #return oct($str);
-  return $str;
+  $parse_errors{$str} = undef;
+  return;
 }
 
-sub get_pattern_rules {
+sub print_parse_errors {
+  for my $e (keys %parse_errors) {
+    print "PARSE_ERROR: $e\n";
+  }
+  return;
+}
+
+sub parse_pattern_rules {
   # Process pattern rules
 
   my $fh = IO::File->new($options{file}, q{<})
@@ -63,7 +73,7 @@ sub get_pattern_rules {
     my ($pattern, $owner, $group, $dmode, $fmode) = split(' ', $line);
 
     # skip blank lines and comments
-    next if (!defined $pattern || $pattern =~ /^ *#/);
+    next if (!defined $pattern || $pattern =~ /^\#/x);
 
     push @pattern_list, $pattern;
 
@@ -76,30 +86,27 @@ sub get_pattern_rules {
     $desired_perms{$pattern} = \%pa;
   }
 
+  print Dumper \%desired_perms if $options{verbosity} > 5;
+  print Dumper \@pattern_list if $options{verbosity} > 5;
+
   return {
     perms => \%desired_perms,
     patterns => \@pattern_list,
   };
 }
 
-sub get_current_perms {
+sub stat_current_perms {
   my ($file) = @_;
   my $sb = stat($file);
   if (!defined($sb)) {
     print "ERROR: unable to stat $file: $!\n";
-    return undef;
+    return;
   }
   return {
     owner => $sb->uid,
     group => $sb->gid,
     mode  => $sb->mode,
   };
-}
-
-my %parse_errors;
-sub parse_error {
-  my ($str) = @_;
-  $parse_errors{$str} = undef;
 }
 
 sub _get_id {
@@ -145,7 +152,7 @@ sub get_groupname{
 sub file_matches_pattern {
   my ($file, $pattern) = @_;
   print "compare $file against pattern $pattern\n" if $options{verbosity} >= 4;
-  if ($file =~ /^${pattern}$/) {
+  if ($file =~ /^${pattern}$/x) {
     print "  rule = $pattern\n" if $options{verbosity} >= 4;
     return 1
   } else {
@@ -156,15 +163,12 @@ sub file_matches_pattern {
 sub soct {  # convert number to octal string
   my ($number) = @_;
   return '-' if ($number == 0);
-  return sprintf('%04o', $number & 0777);
+  return sprintf('%04o', $number & oct('777'));
 }
 
 sub perms_to_string {
   my ($p) = @_;
-  if ($options{verbosity} >= 4) {
-    use Data::Dumper;
-    print Dumper $p;
-  }
+  print Dumper $p if $options{verbosity} >= 5;
   return sprintf('o=%s,g=%s,m=%s',
     get_username($p->{owner}),
     get_groupname($p->{group}),
@@ -188,6 +192,13 @@ sub get_target_perms {
   };
 }
 
+sub print_csv_header {
+  return if $header_already_printed;
+  print 'type,path,mode,owner,group' . "\n";
+  $header_already_printed = 1;
+  return;
+}
+
 sub handle_file {
   my ($file, $current_perms, $target_perms_) = @_;
 
@@ -204,8 +215,10 @@ sub handle_file {
 
   my $file_type = S_ISDIR($current_perms->{mode}) ? 'd' : 'f';
 
-  print '  current ' . perms_to_string($current_perms) . "\n" if $options{verbosity} >= 3;
-  print '  target  ' . perms_to_string($target_perms) . "\n" if $options{verbosity} >= 3;
+  if ($options{verbosity} >= 3) {
+    print '  current ' . perms_to_string($current_perms) . "\n";
+    print '  target  ' . perms_to_string($target_perms) . "\n";
+  }
 
   my @changes = ();
   my $change_count = 0;
@@ -218,11 +231,11 @@ sub handle_file {
   my $tmode = $target_perms->{mode};
   my $cmode = $current_perms->{mode};
 
-  if ($tmode != 0 && $tmode != ($cmode & 0777)) {
+  if ($tmode != 0 && $tmode != ($cmode & oct('777'))) {
     push @changes, sprintf "mode(%s->%s)", soct($cmode), soct($tmode);
     $change_count++;
     print "  chmod $tmode $file\n" if $options{verbosity} >= 3;
-    if ($options{no_run}) {
+    if ($options{no_change}) {
       $pending |= 1;
     } else {
       if (chmod($tmode, $file) == 1) {
@@ -247,7 +260,7 @@ sub handle_file {
       get_username($towner);
     print "  chown $towner, -1, $file\n" if $options{verbosity} >= 3;
     $change_count++;
-    if ($options{no_run}) {
+    if ($options{no_change}) {
       $pending |= 1;
     } else {
       if (chown($towner, -1, $file) == 1) {
@@ -272,7 +285,7 @@ sub handle_file {
       get_groupname($tgroup);
     print "  chown -1, $tgroup, $file\n" if $options{verbosity} >= 3;
     $change_count++;
-    if ($options{no_run}) {
+    if ($options{no_change}) {
       $pending |= 1;
     } else {
       if (chown(-1, $tgroup, $file) == 1) {
@@ -287,9 +300,10 @@ sub handle_file {
     push @changes, '';
   }
 
-  if (($options{verbosity} == 0 && $options{no_run} && $change_count > 0) ||
+  if (($options{verbosity} == 0 && $options{no_change} && $change_count > 0) ||
       ($options{verbosity} == 1 && $change_count > 0) ||
       ($options{verbosity} >= 2)) {
+    print_csv_header();
     print join(',', ($file_type, $file, @changes)) . "\n";
   }
 
@@ -298,12 +312,13 @@ sub handle_file {
   $metrics{pending} += $pending;
   $metrics{failed} += $failed;
   $metrics{changed} += $changed;
+  return;
 }
 
 sub start_descent {
   my ($dir, $rules_href) = @_;
 
-  #print "start descent from $dir ...\n" if $options{verbosity} >= 2;
+  print "start descent from $dir ...\n" if $options{verbosity} >= 4;
 
   find({no_chdir => 1, wanted => sub {
 
@@ -312,12 +327,12 @@ sub start_descent {
     # get the current file or dir, including dir & filename
     my $f = $File::Find::name;
 
-    print "$f\n" if $options{verbosity} >= 4;
+    print "f = $f\n" if $options{verbosity} >= 4;
 
     for my $pattern (@{$rules_href->{patterns}}) {
       if (file_matches_pattern($f, $pattern)) {
 
-        my $current_perms = get_current_perms($f);
+        my $current_perms = stat_current_perms($f);
         if (!defined($current_perms)) {
           $metrics{failed}++;
           return;
@@ -330,31 +345,32 @@ sub start_descent {
       }
     }
   }}, $options{dir});
+  return;
 }
 
 sub print_summary {
   print 'Summary: ' . join(', ', map {
     $_ . '=' . $metrics{$_}
   } (qw/inspected changed failed pending/)) . "\n";
-}
-
-sub print_parse_errors {
-  for my $e (keys %parse_errors) {
-    print "PARSE_ERROR: $e\n";
-  }
+  return;
 }
 
 sub main {
   get_options();
+  print "verbosity = $options{verbosity}\n" if $options{verbosity} >= 2;
   init_metrics();
-  my $rules = get_pattern_rules($options{file});
+  my $rules = parse_pattern_rules($options{file});
+  print Dumper $rules if $options{verbosity} >= 5;
+
   print_parse_errors();
   start_descent($options{dir}, $rules);
   print_summary();
-  print "verbosity = $options{verbosity}\n" if $options{verbosity} >= 2;
+  return;
 }
 
 main();
+
+exit 0;
 
 __END__
 
@@ -364,15 +380,15 @@ recursively set permissions and ownerships according to pattern rules
 
 =head1 OPTIONS
 
-jperms.pl [options] [dir ...]
+jperms.pl [options]
 
  Options:
-   -help|-h|-?     help
-   -man            full documentation
    -dir            directory to descend
    -file           patterns file
-   -no_run         don't run any commands
+   -no_change      don't make changes, just show what would change
    -verbosity      repeat to increase
+   -man            full documentation
+   -help|-h|-?     help
 
 =head1 DESCRIPTION
 
@@ -380,39 +396,61 @@ jperms.pl descends the specified directory tree applying permissions and
 ownerships to each file or directory found according to a set
 of pattern rules.
 
-=head1 RULES
+=head1 PATTERN RULES
 
-Pattern rules are specified as a list of lines.
+Pattern rules are specified as lines in a file, optionally preceded by
+whitespace.  Lines starting with a '#' are treated as B<comments> and ignored.
+
 Each line consists of 5 fields separated by whitespace:
 
- # pattern   owner   group   dir_mode   file_mode
+ pattern   owner   group   dir_mode   file_mode
 
-- pattern is a regex (NOT a fileglob!) to be matched against each path
+A value of '-' for any field except pattern means that this field should be
+ignored and the corresponding attribute for a matching file is to remain
+un-altered.
+
+=item pattern
+
+- B<pattern> is a regex (NOT a fileglob!) to be matched against each path
 found during the tree descent.
 
 - Patterns are automatically surrounded by ^ and $ when matching, meaning
-that it must match the whole of the current path (not just part of it).
+that a pattern must match the whole of the current path (not just part of it).
 
 - file paths include the top level path exactly as specified on the command
 line, so a pattern to match a *relative* top level directory (e.g.  "./dir")
-must also match the dot (".") at the start of each path (e.g. "\./dir")
+must also match the dot (".") at the start of the path (e.g. with "\./dir")
 
-- The path of each file or directory found during the descent is compared
-against each pattern in turn (top to bottom) until a match is found.  Pattern
-matching for that path then stops and the owner, group, dir_mode
-& file_mode associated with the matching pattern are applied to the file or
-directory, where appropriate (see below).
+- The path of each file or directory is compared against each pattern in turn
+(top to bottom) until a match is found.  Matching for that path then
+stops and the matched rule is applied to the file or directory..
 
-- A value of '-' for any or all of owner, group, dir_mode or file_mode
-means that this attribute are to be un-altered when a match is found.
+=item owner and group
 
-- A dir_mode or file_mode value of 0 (or any string which evaluates to zero
+- B<owner> and B<group> fields must be specified as names; numeric ids
+are not supported
+
+- specifying a B<owner> or B<group> which does not exist will cause an error
+message to be printed and the field will have no effect, i.e.  it will be
+treated as if it were '-'
+
+- files found during the descent with numeric owner or group ids (i.e. the user
+or group does not exist on the host), are treated like any other file; i.e. new
+B<owner> and/or B<group> will be applied as normal if a rules matches.
+
+=item dir_mode & file_mode
+
+- B<dir_mode> and B<file_mode> file or dir mode must be specified in octal;
+leading zero is not required
+
+- A B<dir_mode> or B<file_mode> value of 0 (or any string which evaluates to zero
 when converted to a number) is treated as a '-'
 
-- file or dir mode must be specified in octal
+- A pattern may match both files and directories, but B<dir_mode> is only ever
+applied to directories, and B<file_mode> is only applied to files
 
-- A pattern may match both files and directories, but dir_mode are only ever
-applied to directories, and file_mode are only applied to files
+- B<dir_mode> and B<file_mode> specify absolute permissions and are not
+applied through any kind of mask.
 
 =head1 OUTPUT
 
@@ -427,11 +465,8 @@ or all three counts as a single change
 - failed: the number of objects on which a changed failed. Note: failure to chmod or
 chown (or both) counts as a single failure
 
-- unchanged: the number of objects which don't need to be changed, i.e.
-they already match the pattern rules
-
-- pending: the number of objects which need to be changed, but weren't
-either due to error or -no_run mode.
+- pending: the number of objects which need to be changed, but weren't changed
+either due to error or -no_change mode.
 
 Other output is controlled by the -verbosity level:
 
@@ -440,35 +475,10 @@ Other output is controlled by the -verbosity level:
   2 all objects (even if no change required)
   3 commands used to make changes
   3 pattern rules
-  4 pattern debug
-  4 current perms
-  4 target perms
-  4 file
-  4 perms debug
+  4 debug (patterns, current/target perms, filename)
+  5 internal data structures
 
-=head1 USERS AND GROUPS
-
-- owners and groups must be specified as names; numeric ids
-are not supported
-
-- only users & groups which exist are allowed (i.e. in /etc/passwd or
-/etc/group)
-
-- specifying a user or group which does not exist will
-cause an error message to be printed and the field
-will have no effecte, i.e.  it will be treated as if it were '-'
-
-- files found during the descent with numeric owner or group ids
-(i.e. the user or group does not exist on the host), are treated
-like any other file; i.e. the new ownership/group will be applied
-as specified by a matching rule
-
-=head1 COMMENTS
-
-Lines starting with a '#' (optionally preceeded by whitespace)
-are treated as comments and ignored.
-
-=head1 EXAMPLE PATTERNS
+=head1 EXAMPLE PATTERN RULES
 
 Example pattern file:
 
@@ -487,7 +497,4 @@ Example pattern file:
   \./test/data.*                 appuser grp2    770   660
   \./test/.*                     -       -       -     -
   \./test                        appuser appgrp  775   -
-
-=head1 NOTES
-
 
