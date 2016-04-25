@@ -75,13 +75,13 @@ sub parse_permission_rules {
 
     my ($pattern, $owner, $group, $dmode, $fmode) = split(' ', $line);
 
+    # skip blank lines and comments
+    next if (!defined $pattern || $pattern =~ /^\#/x);
+    
     if (!defined($fmode)) {
       parse_error('5 fields expected, line ignored');
       next;
     }
-
-    # skip blank lines and comments
-    next if (!defined $pattern || $pattern =~ /^\#/x);
 
     push @pattern_list, $pattern;
 
