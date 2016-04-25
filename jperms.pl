@@ -121,7 +121,7 @@ sub _get_id {
   my ($name, $type, $sub) = @_;
   # Safely convert user or group name to a numerical id suitable
   # for use with chown. -1 is returned if user or group not found,
-  # which will tell chown to leaving user or group un-altered.
+  # which will tell chown to leave user or group un-altered.
   return -1 if ($name eq '-');
   my $id = $sub->($name);
   return $id if (defined $id);
