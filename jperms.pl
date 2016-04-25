@@ -357,7 +357,7 @@ sub start_descent {
 }
 
 sub print_summary {
-  print 'Summary: ' . join(', ', map {
+  print 'Summary: ' . join(' ', map {
     $_ . '=' . $metrics{$_}
   } (qw/inspected changed failed pending/)) . "\n";
   return;
