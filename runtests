@@ -1,38 +1,62 @@
 echo "Setting up test..."
 
+# Directory location will be relative to .
+
+mkdir -p testdir/d1/proj/d1
+mkdir -p testdir/d1/proj/d2/import
+touch    testdir/d1/proj/d2/import/f1
+touch    testdir/d1/proj/d2/import/f2
+mkdir -p testdir/d1/proj/out
+touch    testdir/d1/proj/out/f1
+mkdir -p testdir/d1/proj/.*/in
+mkdir -p testdir/d2/id/logs
+mkdir -p testdir/d3/logs
+mkdir -p testdir/d/scripts
+touch    testdir/d4
+touch    testdir/f1
+touch    testdir/f2
+
+groupadd g1
+groupadd g2
+useradd -g g1 u1
+useradd -g g2 u2
+
 cat <<EOF > patterns.txt
-# pattern                      owner   grp     dmode fmode
-\./test/data.*/proj/cards      john    docker   770   -
-\./test/data.*/proj/r/r_import john    docker   770   -
-\./test/data.*/proj/outbound   john    kvm     2770   -
-\./test/data.*/proj/.*/inbox   john    docker   770   -
-\./test/data.*/proj/[^/]+      john    kvm      750   -
-\./test/data[^/]*/proj         john    john     750   -
-\./test/data.*/tws/logs        john    kvm      770   -
-#\./test/data.*/tws             john    docker   750   -
-\./test/data.*/tws             
-\./test/data.*/logs            john    libvirt  770   -
-\./test/data.*/scripts         john    kvm      750   -
-\./test/data.*                 john    wibble   770   660
-\./test/.*                     -       -        -     -
-\./test                        john    kvm      775   -
+# pattern                   owner  grp   dmode fmode
+testdir/d.*/proj/d1         u1     g1    770   -
+testdir/d.*/proj/d2/import  u1     g2    770   -
+testdir/d.*/proj/out        u1     g1   2770   -
+testdir/d.*/proj/.*/in      u1     g1    770   -
+testdir/d.*/proj/[^/]+      u1     g1    750   -
+testdir/d[^/]*/proj      u1     g1    750   -
+testdir/d.*/id/logs      u1     g1    770   -
+#\./test/data.*/tws         u1     g2    750   -
+testdir/d.*/logs         u1     g1    770   -
+testdir/d.*/scripts      u1     g1    750   -
+testdir/d.*              u1     g1    770   660
+testdir/.*                  -      -     -     -
+testdir                     u1     g1    775   -
 EOF
 
-chmod 775 ./test/data
-chmod 777 ./test/data/scripts
-chgrp docker ./test/data/scripts
-chmod 776 ./test/data/proj
-chmod 777 ./test/data/proj/r
-chmod 777 ./test/data/proj/r/r_import
-chgrp john ./test/data/proj/r/r_import
-chmod 777 ./test/data/proj/r/r_import/f1
-chmod 777 ./test/data/tws
-chmod 677 ./test/data/tws/logs
-chmod 777 ./test/f1
-chmod 757 ./test/data-2
+#chmod 775    testdir/data
+#chmod 777    testdir/data/scripts
+#chgrp docker testdir/data/scripts
+#chmod 776    testdir/data/proj
+#chmod 777    testdir/data/proj/r
+#chmod 777    testdir/data/proj/r/r_import
+#chgrp john   testdir/data/proj/r/r_import
+#chmod 777    testdir/data/proj/r/r_import/f1
+#chmod 777    testdir/f1
+#chmod 757    testdir/data-2
 
-echo "Starting test..."
+
+testname="20 pending changes"
+echo "Starting test: $testname"
 
 #./jperms.pl -f patterns.txt -d ./test -v -v
 #./jperms.pl -f patterns.txt -d ./test -v
-./jperms.pl -f patterns.txt -d ./test -n
+./jperms.pl -f patterns.txt -d testdir -n | tee /dev/stderr |
+  grep "pending=21$" &&   # TODO remove deliberate fail
+  (echo "$testname test: pass" && exit 0) ||
+  (echo "$testname test: fail" && exit 1)
+
