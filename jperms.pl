@@ -171,7 +171,7 @@ sub file_matches_pattern {
 sub soct {  # convert number to octal string
   my ($number) = @_;
   return '-' if ($number == 0);
-  return sprintf('%04o', $number & oct('777'));
+  return sprintf('%05o', $number & oct('7777'));
 }
 
 sub perms_to_string {
@@ -239,7 +239,7 @@ sub handle_file {
   my $tmode = $target_perms->{mode};
   my $cmode = $current_perms->{mode};
 
-  if ($tmode != 0 && $tmode != ($cmode & oct('777'))) {
+  if ($tmode != 0 && $tmode != ($cmode & oct('7777'))) {
     push @changes, sprintf "mode(%s->%s)", soct($cmode), soct($tmode);
     $change_count++;
     print "  chmod $tmode $file\n" if $options{verbosity} >= 3;
@@ -335,7 +335,7 @@ sub start_descent {
     # get the current file or dir, including dir & filename
     my $f = $File::Find::name;
 
-    print "f = $f\n" if $options{verbosity} >= 4;
+    print "path = $f\n" if $options{verbosity} >= 4;
 
     for my $pattern (@{$rules_href->{patterns}}) {
       if (file_matches_pattern($f, $pattern)) {
