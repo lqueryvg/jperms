@@ -3,40 +3,39 @@ echo "Setting up test..."
 
 # Directory location will be relative to .
 
-mkdir -p /testdir/d1/proj/d1
-mkdir -p /testdir/d1/proj/d2/import
-touch    /testdir/d1/proj/d2/import/f1
-touch    /testdir/d1/proj/d2/import/f2
-mkdir -p /testdir/d1/proj/out
-touch    /testdir/d1/proj/out/f1
-mkdir -p /testdir/d1/proj/.*/in
-mkdir -p /testdir/d2/id/logs
-mkdir -p /testdir/d3/logs
-mkdir -p /testdir/d/scripts
-touch    /testdir/d4
-touch    /testdir/f1
-touch    /testdir/f2
+mkdir -p testdir/d1/proj/d1
+mkdir -p testdir/d1/proj/d2/import
+touch    testdir/d1/proj/d2/import/f1
+touch    testdir/d1/proj/d2/import/f2
+mkdir -p testdir/d1/proj/out
+touch    testdir/d1/proj/out/f1
+mkdir -p testdir/d1/proj/.*/in
+mkdir -p testdir/d2/id/logs
+mkdir -p testdir/d3/logs
+mkdir -p testdir/d/scripts
+touch    testdir/d4
+touch    testdir/f1
+touch    testdir/f2
 
-groupadd g1
-groupadd g2
-useradd -g g1 u1
-useradd -g g2 u2
+sudo groupadd g1
+sudo groupadd g2
+sudo useradd -g g1 u1
+sudo useradd -g g2 u2
 
 cat <<EOF > patterns.txt
 # pattern                   owner  grp   dmode fmode
-/testdir/d.*/proj/d1         u1     g1    770   -
-/testdir/d.*/proj/d2/import  u1     g2    770   -
-/testdir/d.*/proj/out        u1     g1   2770   -
-/testdir/d.*/proj/.*/in      u1     g1    770   -
-/testdir/d.*/proj/[^/]+      u1     g1    750   -
-/testdir/d[^/]*/proj      u1     g1    750   -
-/testdir/d.*/id/logs      u1     g1    770   -
-#\./test/data.*/tws         u1     g2    750   -
-/testdir/d.*/logs         u1     g1    770   -
-/testdir/d.*/scripts      u1     g1    750   -
-/testdir/d.*              u1     g1    770   660
-/testdir/.*                  -      -     -     -
-/testdir                     u1     g1    775   -
+testdir/d.*/proj/d1         u1     g1    770   -
+testdir/d.*/proj/d2/import  u1     g2    770   -
+testdir/d.*/proj/out        u1     g1   2770   -
+testdir/d.*/proj/.*/in      u1     g1    770   -
+testdir/d.*/proj/[^/]+      u1     g1    750   -
+testdir/d[^/]*/proj      u1     g1    750   -
+testdir/d.*/id/logs      u1     g1    770   -
+testdir/d.*/logs         u1     g1    770   -
+testdir/d.*/scripts      u1     g1    750   -
+testdir/d.*              u1     g1    770   660
+testdir/.*                  -      -     -     -
+testdir                     u1     g1    775   -
 EOF
 
 #chmod 775    testdir/data
@@ -76,14 +75,14 @@ find /testdir -ls
 
 testname="0 pending"
 echo -e "\n#### Starting test: $testname"
-/jperms/jperms.pl -f patterns.txt -d /testdir | tee /dev/stderr |
+./jperms.pl -f patterns.txt -d /testdir | tee /dev/stderr |
   grep "pending=0$" &&
   (echo "$testname test: pass" && exit 0) ||
   (echo "$testname test: fail" && exit 1)
 
 testname="0 changed"
 echo -e "\n#### Starting test: $testname"
-/jperms/jperms.pl -f patterns.txt -d /testdir | tee /dev/stderr |
+./jperms.pl -f patterns.txt -d /testdir | tee /dev/stderr |
   grep "changed=0 failed=0 pending=0$" &&
   (echo "$testname test: pass" && exit 0) ||
   (echo "$testname test: fail" && exit 1)
@@ -98,7 +97,7 @@ echo -e "\n#### Starting test: $testname"
 testname="5 fields expected"
 echo -e "\n#### Starting test: $testname"
 echo hello > 5_fields.txt
-/jperms/jperms.pl -f 5_fields.txt -d /testdir 2>&1 |
+./jperms.pl -f 5_fields.txt -d /testdir 2>&1 |
   grep "PARSE_ERROR: 5_fields.txt, line 1: 5 fields expected, line ignored" &&
   (echo "$testname test: pass" && exit 0) ||
   (echo "$testname test: fail" && exit 1)
@@ -106,7 +105,7 @@ echo hello > 5_fields.txt
 testname="bad user name"
 echo -e "\n#### Starting test: $testname"
 echo "/testdir baduser -  - -" > baduser.txt
-/jperms/jperms.pl -f baduser.txt -d /testdir 2>&1 | tee /dev/stderr |
+./jperms.pl -f baduser.txt -d /testdir 2>&1 | tee /dev/stderr |
   grep "PARSE_ERROR: baduser.txt, line 1: unable to find user baduser, field ignored" &&
   (echo "$testname test: pass" && exit 0) ||
   (echo "$testname test: fail" && exit 1)
@@ -114,28 +113,28 @@ echo "/testdir baduser -  - -" > baduser.txt
 testname="bad group name"
 echo -e "\n#### Starting test: $testname"
 echo "/testdir badgroup -  - -" > badgroup.txt
-/jperms/jperms.pl -f badgroup.txt -d /testdir 2>&1 |
+./jperms.pl -f badgroup.txt -d /testdir 2>&1 |
   grep "PARSE_ERROR: badgroup.txt, line 1: unable to find user badgroup, field ignored" &&
   (echo "$testname test: pass" && exit 0) ||
   (echo "$testname test: fail" && exit 1)
 
 testname="-file required"
 echo -e "\n#### Starting test: $testname"
-/jperms/jperms.pl 2>&1 |
+./jperms.pl 2>&1 |
   grep "ERROR: -file is required" &&
   (echo "$testname test: pass" && exit 0) ||
   (echo "$testname test: fail" && exit 1)
 
 testname="-h"
 echo -e "\n#### Starting test: $testname"
-/jperms/jperms.pl -h 2>&1 | tee /dev/stderr |
+./jperms.pl -h 2>&1 | tee /dev/stderr |
   grep "^Options:" &&
   (echo "$testname test: pass" && exit 0) ||
   (echo "$testname test: fail" && exit 1)
 
 testname="-man"
 echo -e "\n#### Starting test: $testname"
-/jperms/jperms.pl -man 2>&1 |
+./jperms.pl -man 2>&1 |
   grep "You need to install the perl-doc package" &&
   (echo "$testname test: pass" && exit 0) ||
   (echo "$testname test: fail" && exit 1)
