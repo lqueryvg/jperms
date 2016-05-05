@@ -42,13 +42,13 @@ EOF
 
 exitStatus=0
 
-test_20_pend_changes() {
+test_20_pending_changes() {
   output=`./jperms.pl -f /tmp/patterns.txt -d /testdir -n | grep "pending=20$"`
   assertEquals "Summary: inspected=22 changed=0 failed=0 pending=20" "$output"
   [[ $? == 1 ]] && exitStatus=1
 }
 
-test_20_pend_changes_again() {
+test_20_pending_changes_again() {
   output=`./jperms.pl -f /tmp/patterns.txt -d /testdir -n | grep "pending=20$"`
   assertEquals "Summary: inspected=22 changed=0 failed=0 pending=20" "$output"
   [[ $? == 1 ]] && exitStatus=1
