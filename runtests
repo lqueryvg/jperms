@@ -48,7 +48,7 @@ test_20_pend_changes() {
   [[ $? == 1 ]] && exitStatus=1
 }
 
-. /shunit2-2.0.3/src/shell/shunit2
+. /tmp/shunit2-2.0.3/src/shell/shunit2
 
 echo "exit $exitStatus"
 exit $exitStatus

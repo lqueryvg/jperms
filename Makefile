@@ -1,10 +1,12 @@
 README.pod: jperms.pl
 	podselect jperms.pl > README.pod
 
-docker-build:
+docker:
 	docker build -t jperms-test .
 
-test:
-	docker run -v ${PWD}:/jperms -w /tmp --name jperms-test jperms-test \
+test: clean
+	docker run -v ${PWD}:/jperms -w /jperms --name jperms-test jperms-test \
 		/jperms/runtests
-	docker rm jperms-test
+
+clean:
+	-docker rm jperms-test
