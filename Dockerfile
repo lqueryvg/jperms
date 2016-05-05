@@ -1,3 +1,6 @@
+# Used for local testing with Docker
+#
+
 FROM ubuntu:14.04
 
 #ADD runtests /tmp/
