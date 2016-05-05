@@ -393,12 +393,14 @@ recursively set permissions and ownerships according to pattern rules
 jperms.pl [options]
 
  Options:
-   -dir            directory to descend
-   -file           permission rules file
+   -dir {dir}      directory to descend
+   -file {file}    permission rules file
    -no_change      don't make changes, just show what would change
    -verbosity      repeat to increase
    -man            full documentation
-   -help|-h|-?     help
+   -help|-?        help
+
+ Note: options can be abbreviated, e.g. -f instead of -file.
 
 =head1 DESCRIPTION
 
