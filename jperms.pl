@@ -386,6 +386,8 @@ __END__
 
 recursively set permissions and ownerships according to pattern rules
 
+=for html <a href="https://travis-ci.org/lqueryvg/jperms"><img src="https://travis-ci.org/lqueryvg/jperms.svg?branch=master"></a>
+
 =head1 OPTIONS
 
 jperms.pl [options]
