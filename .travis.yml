@@ -1,0 +1,5 @@
+language: c
+script: ./runtests
+notifications:
+  email:
+    on_success: never
